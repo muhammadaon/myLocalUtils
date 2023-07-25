@@ -1,0 +1,5 @@
+rabbitmq :
+  addresses : localhost:15672
+  username : localAdmin
+  password : localAdmin
+  virtualHost : /local
