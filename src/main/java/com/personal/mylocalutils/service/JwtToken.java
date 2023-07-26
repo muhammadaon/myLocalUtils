@@ -6,7 +6,7 @@ public class JwtToken {
 
     public static void main(String[] args) {
         String subject = "user123"; // Replace with the subject you want to associate with the token
-        long expirationMillis = 3600; // 1 hour expiration time
+        long expirationMillis = 3600; // 1 second expiration time
 
         // Create JWT Token
         String jwtToken = JwtUtil.createJwtToken(subject, expirationMillis);
