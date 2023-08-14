@@ -6,19 +6,26 @@ import javax.crypto.Cipher;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.Map;
+import java.text.SimpleDateFormat;
+import java.util.*;
+
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.codec.digest.DigestUtils;
+import org.json.JSONObject;
 
 public class ApgsRequestHash {
 
     public static void main(String[] args) {
         String url = "https://sandbox.bankalfalah.com/HS/HS/HS";
+        String ssoUrl = "https://sandbox.bankalfalah.com/SSO/SSO/SSO";
 
-        int bankorderId = (int) (Math.random() * 1786612);
+//        int bankorderId = (int) (Math.random() * 1786612);
+        String timeStamp = new SimpleDateFormat("yyyyMMddHHmmss").format(Calendar.getInstance().getTime());
+        Random rnd = new Random();
+        int number = rnd.nextInt(999999);
+        String rand = String.format("%06d", number);
+        String txnRefNo = timeStamp + rand;
+        System.out.println("tranRefNum = " + txnRefNo);
 
         String Key1 = "CBsP9aCysqvQauvC";
         String Key2 = "1074106468866678";
@@ -30,8 +37,9 @@ public class ApgsRequestHash {
         String HS_MerchantHash = "OUU362MB1urX4Ekr68UNt95etaRWBCHx6WsZKh9WHehvFzk4yqF7CA==";
         String HS_MerchantUsername = "yvygil"; // Replace with your actual value
         String HS_MerchantPassword = "5+pyffR7iWxvFzk4yqF7CA=="; // Replace with your actual value
-        String HS_TransactionReferenceNumber = String.valueOf(bankorderId);
+        String HS_TransactionReferenceNumber = txnRefNo;
         String cipher = "AES/CBC/PKCS5Padding";
+
 
         String mapString =
                 "HS_ChannelId=" + HS_ChannelId +
@@ -44,7 +52,7 @@ public class ApgsRequestHash {
                         "&HS_MerchantPassword=" + HS_MerchantPassword +
                         "&HS_TransactionReferenceNumber=" + HS_TransactionReferenceNumber;
 
-        System.out.println(mapString);
+        System.out.println("String for handshake call" + mapString);
 
 
         try {
@@ -59,11 +67,9 @@ public class ApgsRequestHash {
 
             byte[] encryptedData = aesCipher.doFinal(mapString.getBytes());
 
-
-
             String hashRequest = Base64.getEncoder().encodeToString(encryptedData);
 
-            System.out.println(hashRequest);
+            System.out.println("Hash Request 1 = " + hashRequest);
 
             // The data you want to send via POST
             Map<String, String> fields = new HashMap<>();
@@ -98,6 +104,84 @@ public class ApgsRequestHash {
                 // You can handle the JSON response as needed here.
                 // For example, you can parse the JSON and extract the AuthToken.
                 // To parse JSON, you can use libraries like Gson or Jackson.
+
+                /***code to call the Page redirection request is below
+                 */
+
+                String currency = "PKR";
+                String IsBIN = "0";
+                String TransactionTypeId = "3";
+                String TransactionAmount = "150";
+                String RequestHash1 = null;
+
+                JSONObject jsonResponse = new JSONObject(result);
+                boolean success = jsonResponse.getBoolean("success");
+                String authToken = jsonResponse.getString("AuthToken");
+                String returnURL = jsonResponse.getString("ReturnURL");
+
+                String mapStringSSo = "AuthToken=" + authToken
+                        + "&RequestHash=" + null
+                        + "&ChannelId=" + HS_ChannelId
+                        + "&Currency=" + currency
+                        + "&IsBIN=" + IsBIN
+                        + "&ReturnURL=" + HS_ReturnURL
+                        + "&MerchantId=" + HS_MerchantId
+                        + "&StoreId=" + HS_StoreId
+                        + "&MerchantHash=" + HS_MerchantHash
+                        + "&MerchantUsername=" + HS_MerchantUsername
+                        + "&MerchantPassword=" + HS_MerchantPassword
+                        + "&TransactionTypeId=" + TransactionTypeId
+                        + "&TransactionReferenceNumber=" + HS_TransactionReferenceNumber
+                        + "&TransactionAmount=" + TransactionAmount;
+
+                System.out.println("String for SSO Call" + mapStringSSo);
+
+
+                byte[] encryptedDataSSo = aesCipher.doFinal(mapStringSSo.getBytes());
+
+                String hashRequest2 = Base64.getEncoder().encodeToString(encryptedDataSSo);
+
+                System.out.println("Hash Request 2 = " + hashRequest2);
+
+                 // The data you want to send via POST
+                Map<String, String> fields1 = new HashMap<>();
+                fields1.put("AuthToken", authToken);
+                fields1.put("RequestHash", hashRequest2);
+                fields1.put("ChannelId", HS_ChannelId);
+                fields1.put("Currency", currency);
+                fields1.put("IsBIN", IsBIN);
+                fields1.put("ReturnURL", HS_ReturnURL);
+                fields1.put("MerchantId", HS_MerchantId);
+                fields1.put("StoreId", HS_StoreId);
+                fields1.put("MerchantHash", HS_MerchantHash);
+                fields1.put("MerchantUsername", HS_MerchantUsername);
+                fields1.put("MerchantPassword", HS_MerchantPassword);
+                fields1.put("TransactionTypeId", TransactionTypeId);
+                fields1.put("TransactionReferenceNumber", txnRefNo);
+                fields1.put("TransactionAmount", TransactionAmount);
+
+
+
+                for (Map.Entry<String, String> entry : fields1.entrySet()) {
+                    formBodyBuilder.add(entry.getKey(), entry.getValue());
+                }
+                RequestBody requestBody2 = formBodyBuilder.build();
+
+                Request request2 = new Request.Builder()
+                        .url(ssoUrl)
+                        .post(requestBody2)
+                        .build();
+
+                Response response2 = client.newCall(request2).execute();
+
+                if (response2.isSuccessful()) {
+                    String result2 = response2.body().string();
+                    System.out.println(result2);
+                } else {
+                    System.out.println("Page Redirection Request failed: " + response.message());
+                }
+
+
             } else {
                 System.out.println("Request failed: " + response.message());
             }
@@ -106,3 +190,4 @@ public class ApgsRequestHash {
         }
     }
 }
+

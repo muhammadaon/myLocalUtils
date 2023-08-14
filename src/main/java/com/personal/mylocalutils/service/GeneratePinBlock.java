@@ -7,7 +7,7 @@ public class GeneratePinBlock {
 
     public static void main(String[] args) throws Exception {
 
-        String pan = "2205930501152364";
+        String pan = "2205930501152430";
         String password = "1111";
 
         String pinBlock = CardPinEncrypt.encrypt(pan, password);
